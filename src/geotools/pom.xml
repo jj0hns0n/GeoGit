@@ -57,6 +57,12 @@
       <version>${gt.version}</version>
     </dependency>
       
+	<dependency>
+   	  <groupId>org.geotools</groupId>
+      <artifactId>gt-ogr</artifactId>
+      <version>${gt.version}</version>
+    </dependency>      
+      
       <dependency>
           <groupId>org.xerial</groupId>
           <artifactId>sqlite-jdbc</artifactId>
