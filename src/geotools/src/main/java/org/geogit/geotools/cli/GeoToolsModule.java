@@ -26,6 +26,7 @@ public class GeoToolsModule implements CLIModule {
         binder.bind(PGCommandProxy.class);
         binder.bind(ShpCommandProxy.class);
         binder.bind(SLCommandProxy.class);
+        binder.bind(FGDBCommandProxy.class);
     }
 
 }

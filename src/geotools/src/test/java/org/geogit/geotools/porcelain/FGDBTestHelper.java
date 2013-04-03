@@ -123,7 +123,7 @@ public class FGDBTestHelper {
         final OGRDataStoreFactory factory = mock(OGRDataStoreFactory.class);
         when(factory.createDataStore(anyMapOf(String.class, Serializable.class))).thenReturn(
                 spyDataStore);
-        when(factory.canProcess(anyMapOf(String.class, Serializable.class))).thenReturn(true);
+        when(factory.canProcess(anyMapOf(String.class, Serializable.class))).thenReturn(false);
 
         return factory;
     }
