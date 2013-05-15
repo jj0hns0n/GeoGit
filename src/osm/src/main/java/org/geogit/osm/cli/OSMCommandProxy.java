@@ -6,6 +6,7 @@
 package org.geogit.osm.cli;
 
 import org.geogit.cli.CLICommandExtension;
+import org.geogit.osm.dataimport.cli.OSMImport;
 import org.geogit.osm.history.cli.OSMHistoryImport;
 
 import com.beust.jcommander.JCommander;
@@ -24,6 +25,7 @@ public class OSMCommandProxy implements CLICommandExtension {
         JCommander commander = new JCommander();
         commander.setProgramName("geogit osm");
         commander.addCommand("import-history", new OSMHistoryImport());
+        commander.addCommand("import", new OSMImport());
         return commander;
     }
 }

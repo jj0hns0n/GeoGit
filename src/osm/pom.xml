@@ -34,7 +34,23 @@
       <groupId>net.sourceforge.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
-
+    
+    <dependency>
+		<groupId>org.openstreetmap.osmosis</groupId>
+		<artifactId>osmosis-core</artifactId>
+		<version>0.43-RELEASE</version>
+	</dependency>
+	<dependency>
+	  <groupId>org.openstreetmap.osmosis</groupId>
+	  <artifactId>osmosis-xml</artifactId>
+	  <version>0.43-RELEASE</version>
+	</dependency>
+	<dependency>
+	  <groupId>org.openstreetmap.osmosis</groupId>
+	  <artifactId>osmosis-pbf</artifactId>
+	  <version>0.43-RELEASE</version>
+	</dependency>
+	
     <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
