@@ -59,7 +59,7 @@
       
 	<dependency>
    	  <groupId>org.geotools</groupId>
-      <artifactId>gt-ogr</artifactId>
+      <artifactId>gt-ogr-bridj</artifactId>
       <version>${gt.version}</version>
     </dependency>      
       
