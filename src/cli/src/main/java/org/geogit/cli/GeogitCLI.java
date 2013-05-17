@@ -525,6 +525,16 @@ public class GeogitCLI {
                     lastRun = -(delayMillis + 1);
                 }
 
+                public void setDescription(String s) {
+                    try {
+                        console.println();
+                        console.println(s);
+                        console.flush();
+                    } catch (IOException e) {
+                        Throwables.propagate(e);
+                    }
+                }
+
                 @Override
                 public void complete() {
                     // avoid double logging if caller missbehaves

@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,11 +33,8 @@ import org.geogit.api.plumbing.ResolveTreeish;
 import org.geogit.api.plumbing.RevObjectParse;
 import org.geogit.api.porcelain.AddOp;
 import org.geogit.api.porcelain.CommitOp;
-import org.geogit.repository.WorkingTree;
-import org.geotools.util.NullProgressListener;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.util.ProgressListener;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.domain.v0_6.Entity;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
@@ -53,10 +49,8 @@ import org.openstreetmap.osmosis.xml.v0_6.XmlReader;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
@@ -124,9 +118,9 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
         EntityConverter converter;
         if (mapping == null) {
-            converter = new DefaultEntityConverter();
+            converter = new EntityConverter();
         } else {
-            converter = new EntityConverter(mapping);
+            converter = new MappingEntityConverter(mapping);
         }
 
         OSMLogEntry entry = parseDataFileAndInsert(file, converter);
@@ -158,14 +152,14 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             try {
                 reader = new crosby.binary.osmosis.OsmosisReader(new FileInputStream(file));
             } catch (FileNotFoundException e) {
-                // should not reach this, because we have already check existence
+                // should not reach this, because we have already checked existence
                 throw new IllegalArgumentException("File does not exist: " + urlOrFilepath);
             }
         } else {
-            reader = new XmlReader(file, false, compression);
+            reader = new XmlReader(file, true, compression);
         }
 
-        ConverterSink sink = new ConverterSink(converter);
+        ConvertAndImportSink sink = new ConvertAndImportSink(converter);
         reader.setSink(sink);
 
         Thread readerThread = new Thread(reader);
@@ -179,23 +173,9 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             }
         }
 
-        WorkingTree workTree = this.getWorkTree();
+        sink.getFeaturesMap().flushAll();
 
-        Multimap<String, SimpleFeature> map = sink.getFeatures();
-        for (String parentPath : map.keySet()) {
-            Collection<SimpleFeature> features = map.get(parentPath);
-            if (features.isEmpty()) {
-                continue;
-            }
-
-            Iterator<? extends Feature> iterator = features.iterator();
-            ProgressListener listener = new NullProgressListener();
-            List<org.geogit.api.Node> insertedTarget = null;
-            Integer collectionSize = Integer.valueOf(features.size());
-            workTree.insert(parentPath, iterator, listener, insertedTarget, collectionSize);
-        }
-
-        if (!map.isEmpty()) {
+        if (getWorkTree().countUnstaged(null) != 0) {
             command(AddOp.class).call();
             RevCommit commit = command(CommitOp.class).setMessage(
                     "Update OSM to changeset " + Long.toString(sink.getLatestChangeset())).call();
@@ -208,7 +188,7 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
     }
 
-    class ConverterSink implements Sink {
+    class ConvertAndImportSink implements Sink {
 
         private EntityConverter converter;
 
@@ -216,16 +196,16 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
         private long latestTimestamp;
 
-        private Multimap<String, SimpleFeature> insertsByParent;
+        private FeatureMapFlusher insertsByParent;
 
         Map<Long, Coordinate> pointCache;
 
-        public ConverterSink(EntityConverter converter) {
+        public ConvertAndImportSink(EntityConverter converter) {
             super();
             this.converter = converter;
             this.latestChangeset = 0;
             this.latestTimestamp = 0;
-            this.insertsByParent = HashMultimap.create();
+            this.insertsByParent = new FeatureMapFlusher(getWorkTree());
             pointCache = new LinkedHashMap<Long, Coordinate>() {
                 /** serialVersionUID */
                 private static final long serialVersionUID = 1277795218777240552L;
@@ -242,14 +222,14 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             latestChangeset = Math.max(latestChangeset, entity.getChangesetId());
             latestTimestamp = Math.max(latestTimestamp, entity.getTimestamp().getTime());
             Geometry geom = parseGeometry(entity);
-            Feature feature = converter.convert(entity, geom);
+            Feature feature = converter.toFeature(entity, geom);
             if (feature != null) { // TODO: revisit this
                 String path = feature.getType().getName().getLocalPart();
                 insertsByParent.put(path, (SimpleFeature) feature);
             }
         }
 
-        public Multimap<String, SimpleFeature> getFeatures() {
+        public FeatureMapFlusher getFeaturesMap() {
             return insertsByParent;
         }
 
@@ -269,8 +249,6 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
         public void initialize(Map<String, Object> map) {
         }
-
-        protected static final String NODE_TYPE_NAME = "node";
 
         private final GeometryFactory GEOMF = new GeometryFactory();
 
@@ -305,7 +283,7 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
                 Coordinate coord = pointCache.get(nodeId);
                 if (coord == null) {
                     String fid = String.valueOf(nodeId);
-                    String path = NodeRef.appendChild(NODE_TYPE_NAME, fid);
+                    String path = NodeRef.appendChild(OSMUtils.NODE_TYPE_NAME, fid);
                     Optional<org.geogit.api.Node> ref = getIndex().findStaged(path);
                     if (!ref.isPresent()) {
                         Optional<NodeRef> nodeRef = findTreeChild.setChildPath(path).call();
