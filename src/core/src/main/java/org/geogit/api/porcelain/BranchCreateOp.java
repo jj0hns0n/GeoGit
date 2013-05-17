@@ -39,6 +39,8 @@ public class BranchCreateOp extends AbstractGeoGitOp<Ref> {
 
     private boolean orphan;
 
+    private boolean force;
+
     @Inject
     public BranchCreateOp() {
     }
@@ -57,6 +59,15 @@ public class BranchCreateOp extends AbstractGeoGitOp<Ref> {
      */
     public BranchCreateOp setSource(@Nullable String commit_ish) {
         this.commit_ish = commit_ish;
+        return this;
+    }
+
+    /**
+     * @param force true if the branch should overwrite an exisiting one with the same name, in case
+     *        it exists
+     */
+    public BranchCreateOp setForce(boolean force) {
+        this.force = force;
         return this;
     }
 
@@ -84,7 +95,7 @@ public class BranchCreateOp extends AbstractGeoGitOp<Ref> {
     public Ref call() {
         checkState(branchName != null, "branch name was not provided");
         final String branchRefPath = Ref.HEADS_PREFIX + branchName;
-        checkArgument(!command(RefParse.class).setName(branchRefPath).call().isPresent(),
+        checkArgument(force || !command(RefParse.class).setName(branchRefPath).call().isPresent(),
                 "A branch named '" + branchName + "' already exists.");
 
         Optional<Ref> branchRef;

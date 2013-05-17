@@ -96,7 +96,7 @@ public class Branch extends AbstractCommand implements CLICommand {
     @Parameter(names = { "--delete", "-d" })
     private boolean delete = false;
 
-    @Parameter(names = { "--force", "-f" }, description = "Force renaming of a branch")
+    @Parameter(names = { "--force", "-f" }, description = "Force renaming/creating of a branch if the specified branc name already exists")
     private boolean force = false;
 
     @Parameter(names = { "--verbose", "-v",
@@ -176,7 +176,7 @@ public class Branch extends AbstractCommand implements CLICommand {
         final String branch = branchName.get(0);
         final String origin = branchName.size() > 1 ? branchName.get(1) : Ref.HEAD;
 
-        Ref newBranch = geogit.command(BranchCreateOp.class).setName(branch)
+        Ref newBranch = geogit.command(BranchCreateOp.class).setName(branch).setForce(force)
                 .setAutoCheckout(checkout).setSource(origin).call();
 
         try {

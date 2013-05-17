@@ -55,6 +55,19 @@ public class BranchCreateOpTest extends RepositoryTestCase {
     }
 
     @Test
+    public void testCreateBranchWithTheSameNameAsExistingBranchAndForce() throws Exception {
+        insertAndAdd(points1);
+        geogit.command(CommitOp.class).setMessage("Commit1").call();
+        geogit.command(BranchCreateOp.class).setName("branch1").call();
+        insertAndAdd(points2);
+        RevCommit newCommit = geogit.command(CommitOp.class).setMessage("Commit2").call();
+        geogit.command(BranchCreateOp.class).setName("branch1").setForce(true).call();
+        Optional<Ref> branch1 = geogit.command(RefParse.class).setName("branch1").call();
+        assertTrue(branch1.isPresent());
+        assertEquals(branch1.get().getObjectId(), newCommit.getId());
+    }
+
+    @Test
     public void testCreateBranchFromMasterWithNoCommitsMade() {
         exception.expect(IllegalArgumentException.class);
         geogit.command(BranchCreateOp.class).setName("branch1").call();
