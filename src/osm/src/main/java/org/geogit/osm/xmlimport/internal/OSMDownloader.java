@@ -59,8 +59,8 @@ public class OSMDownloader {
 
         @Override
         public File call() throws Exception {
-            // File downloadFile = File.createTempFile("osm-geogit", ".xml");
-            File downloadFile = new File("d:/osm.xml");
+            File downloadFile = File.createTempFile("osm-geogit", ".xml");
+            //File downloadFile = new File("d:/osm.xml");
             synchronized (downloadFile.getAbsolutePath().intern()) {
                 URL url = new URL(osmAPIUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
