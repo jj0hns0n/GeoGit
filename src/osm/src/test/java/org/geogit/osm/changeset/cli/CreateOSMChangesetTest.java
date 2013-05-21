@@ -3,10 +3,9 @@
  * application directory.
  */
 
-package org.geogit.osm.changeset.internal;
+package org.geogit.osm.changeset.cli;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.List;
 
 import jline.UnsupportedTerminal;
@@ -18,17 +17,16 @@ import org.geogit.api.TestPlatform;
 import org.geogit.cli.GeogitCLI;
 import org.geogit.osm.base.OSMLogEntry;
 import org.geogit.osm.base.ReadOSMLogEntries;
+import org.geogit.osm.changeset.internal.CreateOSMChangesetOpTest;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.openstreetmap.osmosis.core.container.v0_6.ChangeContainer;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 
-public class CreateOSMChangesetOpTest extends Assert {
+public class CreateOSMChangesetTest extends Assert {
 
     private GeogitCLI cli;
 
@@ -51,7 +49,7 @@ public class CreateOSMChangesetOpTest extends Assert {
 
     @Test
     public void testCreateChangesets() throws Exception {
-        String filename = getClass().getResource("nodes.xml").getFile();
+        String filename = CreateOSMChangesetOpTest.class.getResource("nodes.xml").getFile();
         File file = new File(filename);
         cli.execute("osm", "import", file.getAbsolutePath());
         Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
@@ -59,14 +57,10 @@ public class CreateOSMChangesetOpTest extends Assert {
         List<OSMLogEntry> entries = cli.getGeogit().command(ReadOSMLogEntries.class).call();
         assertFalse(entries.isEmpty());
 
-        filename = getClass().getResource("nodes2.xml").getFile();
+        filename = CreateOSMChangesetOpTest.class.getResource("nodes2.xml").getFile();
         file = new File(filename);
         cli.execute("osm", "import", file.getAbsolutePath());
-
-        Iterator<ChangeContainer> changes = cli.getGeogit().command(CreateOSMChangesetOp.class)
-                .setNewVersion("HEAD").setOldVersion("HEAD~1").call();
-        List<ChangeContainer> list = Lists.newArrayList(changes);
-        assertFalse(list.isEmpty());
+        cli.execute("osm", "create-changeset", "HEAD", "HEAD~1", "-f", "d:\\changesets.xml");
 
     }
 

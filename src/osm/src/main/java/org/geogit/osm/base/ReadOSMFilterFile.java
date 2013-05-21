@@ -2,7 +2,7 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.osm.dataimport.internal;
+package org.geogit.osm.base;
 
 import java.io.File;
 import java.io.IOException;

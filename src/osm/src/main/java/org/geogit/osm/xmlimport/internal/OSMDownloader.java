@@ -3,7 +3,7 @@
  * application directory.
  */
 
-package org.geogit.osm.dataimport.internal;
+package org.geogit.osm.xmlimport.internal;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 

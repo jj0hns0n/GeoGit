@@ -3,7 +3,7 @@
  * application directory.
  */
 
-package org.geogit.osm.dataimport.cli;
+package org.geogit.osm.xmlimport.cli;
 
 import java.io.File;
 import java.util.Iterator;
@@ -14,11 +14,15 @@ import jline.console.ConsoleReader;
 
 import org.geogit.api.Node;
 import org.geogit.api.Platform;
+import org.geogit.api.RevCommit;
+import org.geogit.api.RevFeatureType;
 import org.geogit.api.TestPlatform;
-import org.geogit.api.plumbing.diff.DiffEntry;
+import org.geogit.api.plumbing.ResolveFeatureType;
+import org.geogit.api.porcelain.LogOp;
 import org.geogit.cli.GeogitCLI;
-import org.geogit.osm.dataimport.internal.OSMLogEntry;
-import org.geogit.osm.dataimport.internal.ReadOSMLogEntries;
+import org.geogit.osm.base.OSMLogEntry;
+import org.geogit.osm.base.OSMUtils;
+import org.geogit.osm.base.ReadOSMLogEntries;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -50,13 +54,31 @@ public class OSMImportTest extends Assert {
 
     @Test
     public void testImportFromFile() throws Exception {
-        String filename = getClass().getResource("nodes.xml").getFile();
+        String filename = getClass().getResource("ways.xml").getFile();
+        File file = new File(filename);
+        cli.execute("osm", "import", file.getAbsolutePath());
+        Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
+        assertTrue(tree.isPresent());
+        tree = cli.getGeogit().getRepository().getRootTreeChild("way");
+        assertTrue(tree.isPresent());
+        List<OSMLogEntry> entries = cli.getGeogit().command(ReadOSMLogEntries.class).call();
+        assertFalse(entries.isEmpty());
+    }
+
+    @Test
+    public void testImportFromFileTwice() throws Exception {
+        String filename = getClass().getResource("ways.xml").getFile();
         File file = new File(filename);
         cli.execute("osm", "import", file.getAbsolutePath());
         Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
         assertTrue(tree.isPresent());
         List<OSMLogEntry> entries = cli.getGeogit().command(ReadOSMLogEntries.class).call();
         assertFalse(entries.isEmpty());
+        cli.execute("osm", "import", file.getAbsolutePath());
+        Iterator<RevCommit> log = cli.getGeogit().command(LogOp.class).call();
+        assertTrue(log.hasNext());
+        log.next();
+        assertFalse(log.hasNext());
     }
 
     @Test
@@ -64,10 +86,25 @@ public class OSMImportTest extends Assert {
         String filename = getClass().getResource("nodes_overpass_filter.txt").getFile();
         File filterFile = new File(filename);
         cli.execute("osm", "import", "-f", filterFile.getAbsolutePath());
-        Iterator<DiffEntry> unstaged = cli.getGeogit().getRepository().getWorkingTree()
-                .getUnstaged(null);
         Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
         assertTrue(tree.isPresent());
+        List<OSMLogEntry> entries = cli.getGeogit().command(ReadOSMLogEntries.class).call();
+        assertFalse(entries.isEmpty());
+    }
+
+    @Test
+    public void testImportClosedWays() throws Exception {
+        String filename = getClass().getResource("closed_ways.xml").getFile();
+        File file = new File(filename);
+        cli.execute("osm", "import", file.getAbsolutePath());
+        Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
+        assertTrue(tree.isPresent());
+        tree = cli.getGeogit().getRepository().getRootTreeChild("way");
+        assertTrue(tree.isPresent());
+        Optional<RevFeatureType> type = cli.getGeogit().command(ResolveFeatureType.class)
+                .setRefSpec("way/24777894").call();
+        assertTrue(type.isPresent());
+        assertEquals(OSMUtils.closedWayType(), type.get().type());
         List<OSMLogEntry> entries = cli.getGeogit().command(ReadOSMLogEntries.class).call();
         assertFalse(entries.isEmpty());
     }
@@ -90,7 +127,8 @@ public class OSMImportTest extends Assert {
         cli.execute("osm", "import", "-f", filterFile.getAbsolutePath());
         Optional<Node> tree = cli.getGeogit().getRepository().getRootTreeChild("node");
         assertFalse(tree.isPresent());
-        // check that there are no commits
+        Iterator<RevCommit> log = cli.getGeogit().command(LogOp.class).call();
+        assertFalse(log.hasNext());
     }
 
     @Test
@@ -100,4 +138,12 @@ public class OSMImportTest extends Assert {
         assertTrue(tree.isPresent());
     }
 
+    @Test
+    public void testImportWithWrongBBox() throws Exception {
+        try {
+            cli.execute("osm", "import", "-b", "asdads", "7.19", "50.8", "7.20");
+            fail();
+        } catch (IllegalStateException e) {
+        }
+    }
 }

@@ -18,8 +18,8 @@ import org.geogit.api.plumbing.diff.DiffEntry;
 import org.geogit.api.plumbing.diff.DiffEntry.ChangeType;
 import org.geogit.api.porcelain.DiffOp;
 import org.geogit.di.CanRunDuringConflict;
-import org.geogit.osm.dataimport.internal.EntityConverter;
-import org.geogit.osm.dataimport.internal.OSMUtils;
+import org.geogit.osm.base.EntityConverter;
+import org.geogit.osm.base.OSMUtils;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -122,8 +122,7 @@ public class CreateOSMChangesetOp extends AbstractGeoGitOp<Iterator<ChangeContai
                     Optional<Object> value = values.get(i);
                     featureBuilder.set(descriptor.getName(), value.orNull());
                 }
-                SimpleFeature feature = featureBuilder.buildFeature(NodeRef.nodeFromPath(diff
-                        .newPath()));
+                SimpleFeature feature = featureBuilder.buildFeature(ref.name());
                 Entity entity = converter.toEntity(feature);
                 EntityContainer container;
                 if (entity instanceof Node) {

@@ -6,8 +6,11 @@
 package org.geogit.osm.cli;
 
 import org.geogit.cli.CLICommandExtension;
-import org.geogit.osm.dataimport.cli.OSMImport;
+import org.geogit.osm.changeset.cli.CreateOSMChangeset;
 import org.geogit.osm.history.cli.OSMHistoryImport;
+import org.geogit.osm.update.cli.OSMUpdate;
+import org.geogit.osm.xmlexport.cli.OSMExport;
+import org.geogit.osm.xmlimport.cli.OSMImport;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameters;
@@ -26,6 +29,9 @@ public class OSMCommandProxy implements CLICommandExtension {
         commander.setProgramName("geogit osm");
         commander.addCommand("import-history", new OSMHistoryImport());
         commander.addCommand("import", new OSMImport());
+        commander.addCommand("export", new OSMExport());
+        commander.addCommand("update", new OSMUpdate());
+        commander.addCommand("create-changeset", new CreateOSMChangeset());
         return commander;
     }
 }

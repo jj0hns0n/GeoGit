@@ -1,4 +1,4 @@
-package org.geogit.osm.dataimport.internal;
+package org.geogit.osm.base;
 
 public class MappingEntityConverter extends EntityConverter {
 

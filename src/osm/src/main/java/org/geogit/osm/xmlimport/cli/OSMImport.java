@@ -3,7 +3,7 @@
  * application directory.
  */
 
-package org.geogit.osm.dataimport.cli;
+package org.geogit.osm.xmlimport.cli;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -17,14 +17,14 @@ import java.util.List;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
 import org.geogit.cli.GeogitCLI;
-import org.geogit.osm.dataimport.internal.OSMImportOp;
+import org.geogit.osm.xmlimport.internal.OSMImportOp;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.Lists;
 
 /**
- * Imports data from OSM using the Overpass API
+ * Imports data from OSM using the Overpass API or an OSM file
  */
 @Parameters(commandNames = "import", commandDescription = "Import OpenStreetMap data")
 public class OSMImport extends AbstractCommand implements CLICommand {
@@ -86,8 +86,12 @@ public class OSMImport extends AbstractCommand implements CLICommand {
             mapping = readFile(new File(mappingFile));
         }
 
-        op.setFilter(filter).setMapping(mapping).setProgressListener(cli.getProgressListener())
-                .call();
+        try {
+            op.setFilter(filter).setMapping(mapping).setProgressListener(cli.getProgressListener())
+                    .call();
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Error importing OSM data: " + e.getMessage());
+        }
 
     }
 

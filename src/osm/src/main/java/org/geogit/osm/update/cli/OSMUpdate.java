@@ -3,7 +3,7 @@
  * application directory.
  */
 
-package org.geogit.osm.dataimport.cli;
+package org.geogit.osm.update.cli;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -25,10 +25,10 @@ import org.geogit.api.porcelain.LogOp;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
 import org.geogit.cli.GeogitCLI;
-import org.geogit.osm.dataimport.internal.OSMImportOp;
-import org.geogit.osm.dataimport.internal.OSMLogEntry;
-import org.geogit.osm.dataimport.internal.ReadOSMFilterFile;
-import org.geogit.osm.dataimport.internal.ReadOSMLogEntries;
+import org.geogit.osm.base.OSMLogEntry;
+import org.geogit.osm.base.ReadOSMFilterFile;
+import org.geogit.osm.base.ReadOSMLogEntries;
+import org.geogit.osm.xmlimport.internal.OSMImportOp;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;

@@ -1,4 +1,4 @@
-package org.geogit.osm.dataimport.internal;
+package org.geogit.osm.xmlimport.internal;
 
 import java.util.Iterator;
 import java.util.List;
@@ -12,6 +12,14 @@ import org.opengis.util.ProgressListener;
 
 import com.google.common.collect.HashMultimap;
 
+/**
+ * A buffer that wraps a multimap to store features, that flushes when a certain limit is reached.
+ * Flushing means in this case inserting the features in the working tree.
+ * 
+ * The main purpose of this is to reduce the number of insert operations, while still supporting a
+ * large amount of feature without causing an OOM error.
+ * 
+ */
 public class FeatureMapFlusher {
 
     private static final int LIMIT = 10000;
@@ -48,6 +56,9 @@ public class FeatureMapFlusher {
         }
     }
 
+    /**
+     * Inserts all features currenty stored in this object into the working tree.
+     */
     public void flushAll() {
         for (String key : map.keySet()) {
             flush(key);

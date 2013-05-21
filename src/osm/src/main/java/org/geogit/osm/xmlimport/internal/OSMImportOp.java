@@ -2,7 +2,7 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.osm.dataimport.internal;
+package org.geogit.osm.xmlimport.internal;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -19,8 +19,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 
-import javax.management.relation.Relation;
-
 import org.geogit.api.AbstractGeoGitOp;
 import org.geogit.api.NodeRef;
 import org.geogit.api.ObjectId;
@@ -33,11 +31,19 @@ import org.geogit.api.plumbing.ResolveTreeish;
 import org.geogit.api.plumbing.RevObjectParse;
 import org.geogit.api.porcelain.AddOp;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.osm.base.AddOSMLogEntry;
+import org.geogit.osm.base.EntityConverter;
+import org.geogit.osm.base.MappingEntityConverter;
+import org.geogit.osm.base.OSMLogEntry;
+import org.geogit.osm.base.OSMUtils;
+import org.geogit.osm.base.WriteOSMFilterFile;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
+import org.openstreetmap.osmosis.core.domain.v0_6.Bound;
 import org.openstreetmap.osmosis.core.domain.v0_6.Entity;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
+import org.openstreetmap.osmosis.core.domain.v0_6.Relation;
 import org.openstreetmap.osmosis.core.domain.v0_6.Tag;
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
@@ -57,24 +63,58 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
 
+/**
+ * Imports data from OSM, whether from a URL that represents an endpoint that supports the OSM
+ * overpass api, or from a file with OSM data
+ * 
+ */
 public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
+    /**
+     * *The mapping to use for converting entities into features and create the corresponding
+     * feature type
+     */
     private String mapping;
 
+    /**
+     * The filter to use if calling the overpass API
+     */
     private String filter;
 
+    /**
+     * The URL of file to use for importing
+     */
     private String urlOrFilepath;
 
+    /**
+     * Sets the filter to use. It uses the overpass Query Language
+     * 
+     * @param filter the filter to use
+     * @return
+     */
     public OSMImportOp setFilter(String filter) {
         this.filter = filter;
         return this;
     }
 
+    /**
+     * Sets the mapping to use for creating the feature types for OSM elements
+     * 
+     * @param mapping
+     * @return
+     */
     public OSMImportOp setMapping(String mapping) {
         this.mapping = mapping;
         return this;
     }
 
+    /**
+     * Sets the source of OSM data. Can be the URL of an endpoint supporting the overpass API, or a
+     * filepath
+     * 
+     * @param urlOrFilepath
+     * @return
+     */
     public OSMImportOp setDataSource(String urlOrFilepath) {
         this.urlOrFilepath = urlOrFilepath;
         return this;
@@ -122,6 +162,9 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
         } else {
             converter = new MappingEntityConverter(mapping);
         }
+
+        getWorkTree().delete(OSMUtils.NODE_TYPE_NAME);
+        getWorkTree().delete(OSMUtils.WAY_TYPE_NAME);
 
         OSMLogEntry entry = parseDataFileAndInsert(file, converter);
 
@@ -173,12 +216,17 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             }
         }
 
-        sink.getFeaturesMap().flushAll();
+        sink.complete();
 
         if (getWorkTree().countUnstaged(null) != 0) {
             command(AddOp.class).call();
-            RevCommit commit = command(CommitOp.class).setMessage(
-                    "Update OSM to changeset " + Long.toString(sink.getLatestChangeset())).call();
+            String message;
+            if (urlOrFilepath.startsWith("http")) {
+                message = "Updated to changeset " + Long.toString(sink.getLatestChangeset());
+            } else {
+                message = "Imported OSM data from file" + new File(urlOrFilepath).getName();
+            }
+            RevCommit commit = command(CommitOp.class).setMessage(message).call();
             OSMLogEntry entry = new OSMLogEntry(commit.getId(), sink.getLatestChangeset(),
                     sink.getLatestTimestamp());
             command(AddOSMLogEntry.class).setEntry(entry).call();
@@ -188,6 +236,11 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
     }
 
+    /**
+     * A sink that processes OSM entities by cnvertign them to GeoGit feaetures and inserting them
+     * into the repository working tree
+     * 
+     */
     class ConvertAndImportSink implements Sink {
 
         private EntityConverter converter;
@@ -222,10 +275,12 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             latestChangeset = Math.max(latestChangeset, entity.getChangesetId());
             latestTimestamp = Math.max(latestTimestamp, entity.getTimestamp().getTime());
             Geometry geom = parseGeometry(entity);
-            Feature feature = converter.toFeature(entity, geom);
-            if (feature != null) { // TODO: revisit this
-                String path = feature.getType().getName().getLocalPart();
-                insertsByParent.put(path, (SimpleFeature) feature);
+            if (geom != null) {
+                Feature feature = converter.toFeature(entity, geom);
+                if (feature != null) { // TODO: revisit this
+                    String path = feature.getType().getName().getLocalPart();
+                    insertsByParent.put(path, (SimpleFeature) feature);
+                }
             }
         }
 
@@ -233,10 +288,20 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             return insertsByParent;
         }
 
+        /**
+         * returns the latest timestamp of all the entities processed so far
+         * 
+         * @return
+         */
         public long getLatestTimestamp() {
             return latestTimestamp;
         }
 
+        /**
+         * returns the id of the latest changeset of all the entities processed so far
+         * 
+         * @return
+         */
         public long getLatestChangeset() {
             return latestChangeset;
         }
@@ -245,6 +310,7 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
         }
 
         public void complete() {
+            insertsByParent.flushAll();
         }
 
         public void initialize(Map<String, Object> map) {
@@ -252,9 +318,20 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
 
         private final GeometryFactory GEOMF = new GeometryFactory();
 
+        /**
+         * Returns the geometry corresponding to an entity. A point in the case of a node, a
+         * lineString for a way, and a Polygon for a closed way Return null if it could not create
+         * the geometry.
+         * 
+         * This will be the case if the entity is a way but the corresponding nodes cannot be found,
+         * and also if the entity is of a type other than Node of Way
+         * 
+         * @param entity the entity to extract the geometry from
+         * @return
+         */
         protected Geometry parseGeometry(Entity entity) {
 
-            if (entity instanceof Relation) {
+            if (entity instanceof Relation || entity instanceof Bound) {
                 return null;
             }
 
@@ -326,7 +403,7 @@ public class OSMImportOp extends AbstractGeoGitOp<Optional<OSMLogEntry>> {
             if (way.isClosed()) {
                 Collection<Tag> tags = way.getTags();
                 for (Tag tag : tags) {
-                    if (tag.getKey().equals("area") && tag.getValue().equals("true")) {
+                    if (tag.getKey().equals("area") && tag.getValue().equals("yes")) {
                         return GEOMF.createPolygon(coordinates.toArray(new Coordinate[coordinates
                                 .size()]));
                     }
