@@ -31,19 +31,22 @@ class GeoGitFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleFeat
     private String typePath;
 
     private GeoGitFeatureWriter(FeatureReader<SimpleFeatureType, SimpleFeature> reader,
-            String typePath) {
+            String typePath, WorkingTree workingTree) {
         this.reader = reader;
         this.typePath = typePath;
+        this.workingTree = workingTree;
     }
 
     public static GeoGitFeatureWriter create(
-            FeatureReader<SimpleFeatureType, SimpleFeature> reader, String typePath) {
-        return new GeoGitFeatureWriter(reader, typePath);
+            FeatureReader<SimpleFeatureType, SimpleFeature> reader, String typePath, 
+            WorkingTree workingTree) {
+        return new GeoGitFeatureWriter(reader, typePath, workingTree);
     }
 
     public static GeoGitFeatureWriter createAppendable(
-            FeatureReader<SimpleFeatureType, SimpleFeature> reader, String typePath) {
-        return new GeoGitFeatureWriter(new InfiniteFeatureReader(reader), typePath);
+            FeatureReader<SimpleFeatureType, SimpleFeature> reader, String typePath, 
+            WorkingTree workingTree) {
+        return new GeoGitFeatureWriter(new InfiniteFeatureReader(reader), typePath, workingTree);
     }
 
     @Override

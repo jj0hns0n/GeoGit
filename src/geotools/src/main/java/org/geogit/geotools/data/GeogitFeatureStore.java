@@ -208,12 +208,27 @@ class GeogitFeatureStore extends ContentFeatureStore {
             features = new EmptyFeatureReader<SimpleFeatureType, SimpleFeature>(getSchema());
         }
 
+        WorkingTree wtree = null;
+
+        Transaction tx = getTransaction();
+        if (tx != null && tx != Transaction.AUTO_COMMIT) {
+            GeogitTransactionState state = 
+                (GeogitTransactionState) tx.getState(GeogitTransactionState.class);
+            Preconditions.checkNotNull(state, 
+                "Non auto-commit transaction should have transaction state");
+
+            wtree = state.getGeogitTransaction().get().getWorkingTree();
+        }
+        else {
+            wtree = getFeatureSource().getWorkingTree();
+        }
+
         String path = delegate.getTypeTreePath();
         GeoGitFeatureWriter writer;
         if ((flags | WRITER_ADD) == WRITER_ADD) {
-            writer = GeoGitFeatureWriter.createAppendable(features, path);
+            writer = GeoGitFeatureWriter.createAppendable(features, path, wtree);
         } else {
-            writer = GeoGitFeatureWriter.create(features, path);
+            writer = GeoGitFeatureWriter.create(features, path, wtree);
         }
         return writer;
     }

@@ -28,15 +28,25 @@ import org.geogit.api.plumbing.LsTreeOp.Strategy;
 import org.geogit.api.porcelain.BranchCreateOp;
 import org.geogit.api.porcelain.CommitOp;
 import org.geogit.test.integration.RepositoryTestCase;
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.FeatureReader;
+import org.geotools.data.FeatureSource;
+import org.geotools.data.FeatureWriter;
+import org.geotools.data.Query;
+import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.NameImpl;
+import org.geotools.geometry.jts.GeometryBuilder;
 import org.junit.Test;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.Name;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.LineString;
 
 public class GeoGitDataStoreTest extends RepositoryTestCase {
 
@@ -313,4 +323,35 @@ public class GeoGitDataStoreTest extends RepositoryTestCase {
         assertTrue(source instanceof GeogitFeatureStore);
     }
 
+    @Test
+    public void testFeatureWriterAppend() throws Exception {
+        dataStore.createSchema(linesType);
+
+        Transaction tx = new DefaultTransaction();
+        FeatureWriter<SimpleFeatureType,SimpleFeature> fw = 
+            dataStore.getFeatureWriterAppend(linesTypeName.getLocalPart(), tx);
+
+        LineString line = new GeometryBuilder().lineString(0,0,1,1);
+        SimpleFeature f = (SimpleFeature) fw.next();
+        f.setAttribute("sp", "foo");
+        f.setAttribute("ip", 10);
+        f.setAttribute("pp", line);
+
+        fw.write();
+        fw.close();
+        
+        tx.commit();
+
+        FeatureSource<SimpleFeatureType, SimpleFeature> source = dataStore.getFeatureSource(linesTypeName);
+        assertEquals(1, source.getCount(null));
+
+        FeatureReader<SimpleFeatureType, SimpleFeature> r = dataStore.getFeatureReader(
+            new Query(linesTypeName.getLocalPart()), Transaction.AUTO_COMMIT);
+        assertTrue(r.hasNext());
+
+        f = r.next();
+        assertEquals("foo", f.getAttribute("sp"));
+        assertEquals(10, f.getAttribute("ip"));
+        assertTrue(line.equals((Geometry)f.getAttribute("pp")));
+    }
 }
