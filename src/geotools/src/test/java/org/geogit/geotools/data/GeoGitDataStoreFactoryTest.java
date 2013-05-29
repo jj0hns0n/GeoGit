@@ -17,6 +17,7 @@
 package org.geogit.geotools.data;
 
 import static org.geogit.geotools.data.GeoGitDataStoreFactory.REPOSITORY;
+import static org.geogit.geotools.data.GeoGitDataStoreFactory.CREATE;
 
 import java.io.File;
 import java.io.IOException;
@@ -137,5 +138,30 @@ public class GeoGitDataStoreFactoryTest extends RepositoryTestCase {
         GeoGitDataStore store = factory.createNewDataStore(params);
         assertNotNull(store);
 
+    }
+
+    @Test
+    public void testCreateOption() throws Exception {
+        String newRepoDir = new File("target", "datastore" + new Random().nextInt())
+            .getAbsolutePath();
+
+        Map<String, Serializable> params = ImmutableMap.of(REPOSITORY.key, (Serializable)newRepoDir, 
+            CREATE.key, true);
+
+        assertTrue(factory.canProcess(params));
+        GeoGitDataStore store = factory.createDataStore(params);
+        assertNotNull(store);
+    }
+
+    @Test
+    public void testCreateOptionDirectoryExists() throws Exception {
+        File newRepoDir = new File("target", "datastore" + new Random().nextInt());
+        newRepoDir.mkdirs();
+     
+        Map<String, Serializable> params = ImmutableMap.of(REPOSITORY.key, (Serializable)newRepoDir, 
+            CREATE.key, true);
+        assertTrue(factory.canProcess(params));
+        GeoGitDataStore store = factory.createDataStore(params);
+        assertNotNull(store);
     }
 }

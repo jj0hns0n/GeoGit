@@ -59,6 +59,10 @@ public class GeoGitDataStoreFactory implements DataStoreFactorySpi {
             "Optional namespace for feature types that do not declare a Namespace themselves",
             false);
 
+    public static final Param CREATE = new Param("create", Boolean.class,
+            "Optional flag to enable creation of a new repository if it does not exist", 
+            false);
+    
     @Override
     public String getDisplayName() {
         return DISPLAY_NAME;
@@ -71,14 +75,18 @@ public class GeoGitDataStoreFactory implements DataStoreFactorySpi {
 
     @Override
     public Param[] getParametersInfo() {
-        return new Param[] { REPOSITORY, BRANCH, DEFAULT_NAMESPACE };
+        return new Param[] { REPOSITORY, BRANCH, DEFAULT_NAMESPACE, CREATE };
     }
 
     @Override
     public boolean canProcess(Map<String, Serializable> params) {
         try {
             Object repository = REPOSITORY.lookUp(params);
-            return repository instanceof File && ((File) repository).isDirectory();
+
+            //check that repository points to a file, and either that fiel is a directory, or the 
+            // the create option is set
+            return repository instanceof File && 
+                ((File) repository).isDirectory() || Boolean.TRUE.equals(CREATE.lookUp(params));
         } catch (IOException e) {
             //
         }
@@ -109,6 +117,15 @@ public class GeoGitDataStoreFactory implements DataStoreFactorySpi {
         @Nullable
         final String branch = (String) BRANCH.lookUp(params);
 
+        @Nullable
+        final Boolean create = (Boolean) CREATE.lookUp(params);
+
+        if (create != null && create.booleanValue()) {
+            if (!repositoryRoot.exists()) {
+                return createNewDataStore(params);
+            }
+        }
+
         GlobalInjectorBuilder.builder = new CLIInjectorBuilder();
         GeoGIT geogit;
         try {
@@ -118,6 +135,10 @@ public class GeoGitDataStoreFactory implements DataStoreFactorySpi {
         }
         Repository repository = geogit.getRepository();
         if (null == repository) {
+            if (create != null && create.booleanValue()) {
+                return createNewDataStore(params);
+            }
+
             throw new IOException(String.format("Directory is not a geogit repository: '%s'",
                     repositoryRoot.getAbsolutePath()));
         }
