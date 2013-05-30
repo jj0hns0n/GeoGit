@@ -9,10 +9,10 @@ import java.util.concurrent.TimeoutException;
 
 import org.geogit.api.AbstractGeoGitOp;
 import org.geogit.api.GeogitTransaction;
-import org.geogit.api.ObjectId;
 import org.geogit.api.Ref;
 import org.geogit.api.SymRef;
 import org.geogit.api.porcelain.CheckoutOp;
+import org.geogit.api.porcelain.MergeOp;
 import org.geogit.api.porcelain.RebaseOp;
 
 import com.google.common.base.Optional;
@@ -28,8 +28,8 @@ import com.google.inject.Inject;
  * If a given ref has not been changed on the repsoitory, it will simply update the repository's ref
  * to the value of the transaction ref.
  * <p>
- * If the repository ref was updated while the transaction occurred, a rebase operation will be
- * performed on that ref and the repository's ref will be updated to the newly rebased commit.
+ * If the repository ref was updated while the transaction occurred, the changes will be brought
+ * together via a merge or rebase operation and the new ref will be updated to the result.
  * 
  * @see GeogitTransaction
  */
@@ -39,7 +39,7 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
 
     private GeogitTransaction transaction = null;
 
-    private boolean sync = false;
+    private boolean rebase = false;
 
     @Inject
     public TransactionEnd() {
@@ -64,8 +64,8 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
         return this;
     }
 
-    public TransactionEnd setSync() {
-        sync = true;
+    public TransactionEnd setRebase(boolean rebase) {
+        this.rebase = rebase;
         return this;
     }
 
@@ -104,21 +104,21 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
 
                     Optional<Ref> repoRef = command(RefParse.class).setName(ref.getName()).call();
                     if (repoRef.isPresent() && repositoryChanged(repoRef.get())) {
-                        // Try to rebase
-                        if (sync) {
-                            ObjectId updatedRefId = ref.getObjectId();
-                            command(CheckoutOp.class).setSource(repoRef.get().getName())
-                                    .setForce(true).call();
-                            command(RebaseOp.class).setUpstream(Suppliers.ofInstance(updatedRefId))
-                                    .call();
-                            updatedRef = command(RefParse.class).setName(ref.getName()).call()
-                                    .get();
-
-                        } else {
+                        if (rebase) {
+                            // Try to rebase
                             transaction.command(CheckoutOp.class).setSource(ref.getName())
                                     .setForce(true).call();
                             transaction.command(RebaseOp.class)
                                     .setUpstream(Suppliers.ofInstance(repoRef.get().getObjectId()))
+                                    .call();
+                            updatedRef = transaction.command(RefParse.class).setName(ref.getName())
+                                    .call().get();
+                        } else {
+                            // sync transactions have to use merge to prevent divergent history
+                            transaction.command(CheckoutOp.class).setSource(ref.getName())
+                                    .setForce(true).call();
+                            transaction.command(MergeOp.class)
+                                    .addCommit(Suppliers.ofInstance(repoRef.get().getObjectId()))
                                     .call();
                             updatedRef = transaction.command(RefParse.class).setName(ref.getName())
                                     .call().get();

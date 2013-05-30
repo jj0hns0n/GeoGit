@@ -99,12 +99,12 @@ public class GeogitTransaction implements CommandLocator {
     }
 
     public void commit() {
-        locator.command(TransactionEnd.class).setTransaction(this).setCancel(false).call();
+        locator.command(TransactionEnd.class).setTransaction(this).setCancel(false).setRebase(true)
+                .call();
     }
 
     public void commitSyncTransaction() {
-        locator.command(TransactionEnd.class).setTransaction(this).setCancel(false).setSync()
-                .call();
+        locator.command(TransactionEnd.class).setTransaction(this).setCancel(false).call();
     }
 
     public void abort() {

@@ -65,7 +65,7 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertEquals(expectedTransaction, logged);
 
         // Commit the transaction
-        geogit.command(TransactionEnd.class).setTransaction(t).call();
+        geogit.command(TransactionEnd.class).setTransaction(t).setRebase(true).call();
 
         // Verify that the base repository has the changes from the transaction
         logs = geogit.command(LogOp.class).call();
@@ -121,17 +121,16 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertEquals(expectedTransaction, logged);
 
         // Commit the transaction
-        geogit.command(TransactionEnd.class).setTransaction(t).setSync().call();
+        geogit.command(TransactionEnd.class).setTransaction(t).call();
 
-        // Verify that the base repository has the changes from the transaction
+        // Verify that a merge commit was created
         logs = geogit.command(LogOp.class).call();
         RevCommit lastCommit = logs.next();
         assertFalse(lastCommit.equals(repoCommit));
-        assertEquals(lastCommit.getMessage(), repoCommit.getMessage());
-        assertEquals(lastCommit.getAuthor(), repoCommit.getAuthor());
-        assertEquals(lastCommit.getCommitter().getName(), repoCommit.getCommitter().getName());
-        assertFalse(lastCommit.getCommitter().getTimestamp() == repoCommit.getCommitter()
-                .getTimestamp());
+        assertTrue(lastCommit.getMessage().contains("Merge commit"));
+        assertEquals(lastCommit.getParentIds().get(0), transactionCommit.getId());
+        assertEquals(lastCommit.getParentIds().get(1), repoCommit.getId());
+        assertEquals(logs.next(), repoCommit);
         assertEquals(logs.next(), transactionCommit);
         assertEquals(logs.next(), firstCommit);
         assertFalse(logs.hasNext());
@@ -184,7 +183,7 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertFalse(logs.hasNext());
 
         // Commit the first transaction
-        geogit.command(TransactionEnd.class).setTransaction(transaction1).call();
+        geogit.command(TransactionEnd.class).setTransaction(transaction1).setRebase(true).call();
 
         // Verify that the base repository has the changes from the transaction
         logs = geogit.command(LogOp.class).call();
@@ -193,7 +192,7 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertFalse(logs.hasNext());
 
         // Now try to commit the second transaction
-        geogit.command(TransactionEnd.class).setTransaction(transaction2).call();
+        geogit.command(TransactionEnd.class).setTransaction(transaction2).setRebase(true).call();
 
         // Verify that the base repository has the changes from the transaction
         logs = geogit.command(LogOp.class).call();
@@ -263,7 +262,7 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertFalse(logs.hasNext());
 
         // Commit the first transaction
-        geogit.command(TransactionEnd.class).setTransaction(transaction1).call();
+        geogit.command(TransactionEnd.class).setTransaction(transaction1).setRebase(true).call();
 
         // Verify that the base repository has the changes from the transaction
         logs = geogit.command(LogOp.class).call();
@@ -277,7 +276,7 @@ public class GeogitTransactionTest extends RepositoryTestCase {
         assertFalse(logs.hasNext());
 
         // Now try to commit the second transaction
-        geogit.command(TransactionEnd.class).setTransaction(transaction2).call();
+        geogit.command(TransactionEnd.class).setTransaction(transaction2).setRebase(true).call();
 
         // Verify that the base repository has the changes from the transaction
         logs = geogit.command(LogOp.class).call();

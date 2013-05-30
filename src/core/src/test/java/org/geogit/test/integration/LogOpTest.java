@@ -290,7 +290,7 @@ public class LogOpTest extends RepositoryTestCase {
             logOp = geogit.command(LogOp.class);
             logOp.setSince(oid1_1).call();
             fail("Expected ISE as since is not a commit");
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("since"));
         }
 
@@ -298,7 +298,7 @@ public class LogOpTest extends RepositoryTestCase {
             logOp = geogit.command(LogOp.class);
             logOp.setSince(null).setUntil(oid2_2).call();
             fail("Expected ISE as until is not a commit");
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("until"));
         }
 
