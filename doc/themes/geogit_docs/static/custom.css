@@ -6095,7 +6095,7 @@ h5 {
 #main {
   padding-top: 50px;
   padding-bottom: 20px;
-  background: #272727 url(roadmap.png) no-repeat;
+  background: #272727; 
   color: #ddd;
 }
 #main .first {
