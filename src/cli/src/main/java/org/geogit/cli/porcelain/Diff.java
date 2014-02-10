@@ -10,8 +10,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.geogit.api.GeoGIT;
+import org.geogit.api.plumbing.DiffBounds;
 import org.geogit.api.plumbing.diff.DiffEntry;
 import org.geogit.api.porcelain.DiffOp;
+import org.geogit.cli.porcelain.BoundsDiffPrinter;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
 import org.geogit.cli.GeogitCLI;
@@ -20,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.vividsolutions.jts.geom.Envelope;
 
 /**
  * Shows changes between commits, commits and working tree, etc.
@@ -54,6 +57,9 @@ public class Diff extends AbstractCommand implements CLICommand {
     @Parameter(names = "--nogeom", description = "Do not show detailed coordinate changes in geometries")
     private boolean nogeom;
 
+    @Parameter(names = "--bounds", description = "Show only the bounds of the difference between the two trees")
+    private boolean bounds;
+
     /**
      * Executes the diff command with the specified options.
      */
@@ -70,8 +76,17 @@ public class Diff extends AbstractCommand implements CLICommand {
         String newVersion = resolveNewVersion();
 
         diff.setOldVersion(oldVersion).setNewVersion(newVersion).setCompareIndex(cached);
+        
 
         Iterator<DiffEntry> entries;
+        if (bounds) {
+            DiffBounds diffBounds = new DiffBounds();
+            Envelope boundsEnvelope = diffBounds.computeDiffBounds(diff.call());
+            BoundsDiffPrinter boundsDiffPrinter = new BoundsDiffPrinter();
+            boundsDiffPrinter.print(geogit, cli.getConsole(), boundsEnvelope);
+            return;
+        }
+        
         if (paths.isEmpty()) {
             entries = diff.setProgressListener(cli.getProgressListener()).call();
         } else {
@@ -94,6 +109,8 @@ public class Diff extends AbstractCommand implements CLICommand {
         } else {
             printer = new FullDiffPrinter(nogeom, false);
         }
+
+        
 
         DiffEntry entry;
         while (entries.hasNext()) {

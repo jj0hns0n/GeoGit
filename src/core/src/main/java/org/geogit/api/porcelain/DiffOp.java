@@ -46,7 +46,7 @@ import org.geogit.di.CanRunDuringConflict;
  * @see DiffTree
  */
 @CanRunDuringConflict
-public class DiffOp extends AbstractGeoGitOp<Iterator<DiffEntry>> {
+public class DiffOp extends AbstractGeoGitOp<Iterator<DiffEntry>> implements Iterable<DiffEntry> {
 
     private String oldRefSpec;
 
@@ -156,5 +156,10 @@ public class DiffOp extends AbstractGeoGitOp<Iterator<DiffEntry>> {
         this.reportTrees = reportTrees;
         return this;
     }
+
+	@Override
+	public Iterator<DiffEntry> iterator() {
+		return call();
+	}
 
 }
